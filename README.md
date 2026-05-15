@@ -4,7 +4,7 @@
 
 CSCI E-222 Final Project — Ankit Kumar Honey, Harvard Extension School, Spring 2026.
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/<YOUR_GH_USER>/reachability-llm/blob/main/notebooks/FalsePositive_SupplyChain_Honey.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/honeyankit/reachability-llm/blob/main/notebooks/FalsePositive_SupplyChain_Honey.ipynb)
 
 ---
 
@@ -49,7 +49,7 @@ CVSS = 7.2, EPSS = 0.0023 for both alerts. **Only reachability distinguishes the
 ### Option B — Local (Python 3.10+)
 
 ```bash
-git clone https://github.com/<YOUR_GH_USER>/reachability-llm
+git clone https://github.com/honeyankit/reachability-llm
 cd reachability-llm
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt

@@ -51,7 +51,7 @@ It is structured so you can:
 # Set this to your own fork or the upstream repo you pushed the code to.
 # If you opened the notebook in Colab via "Open in GitHub", you still need to
 # clone the rest of the repo so the `reachability_llm` package is importable.
-GITHUB_REPO = "AnkitHoney/reachability-llm"   # owner/name
+GITHUB_REPO = "honeyankit/reachability-llm"   # owner/name
 REPO_BRANCH = "main"
 # ======================
 
