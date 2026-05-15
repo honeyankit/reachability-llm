@@ -47,8 +47,15 @@ def build_dataset(
     epss: pd.DataFrame,
     today: Optional[datetime] = None,
     seed: int = 42,
+    max_majority_ratio: float = 4.0,
 ) -> pd.DataFrame:
-    """Join advisories with EPSS, derive features, attach proxy label."""
+    """Join advisories with EPSS, derive features, attach proxy label.
+
+    Args:
+        max_majority_ratio: cap on the majority/minority ratio after balancing.
+            Default 4.0 lets the natural imbalance through while preventing
+            extreme skew. Pass float('inf') to disable balancing entirely.
+    """
     today = today or datetime.now(timezone.utc).replace(tzinfo=None)
     df = advisories.copy()
     df = df.merge(epss[["cve_id", "epss", "percentile"]], on="cve_id", how="left")
@@ -98,13 +105,12 @@ def build_dataset(
     cols = [c for c in cols if c in df.columns]
     out = df[cols].dropna(subset=["text"]).reset_index(drop=True)
 
-    # Light class balancing — downsample majority to within 1.5x of minority
-    rng = np.random.default_rng(seed)
+    # Light class balancing — cap the majority class at max_majority_ratio * minority.
     counts = out["label"].value_counts()
-    if len(counts) == 2:
+    if len(counts) == 2 and max_majority_ratio != float("inf"):
         minority = counts.idxmin()
         majority = counts.idxmax()
-        target = int(counts[minority] * 1.5)
+        target = int(counts[minority] * max_majority_ratio)
         if counts[majority] > target:
             keep_maj = out[out["label"] == majority].sample(n=target, random_state=seed)
             keep_min = out[out["label"] == minority]

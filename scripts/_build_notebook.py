@@ -141,10 +141,12 @@ if MODE == "real":
     advisories = load_advisories(
         advisory_path,
         ecosystems={"npm", "pip", "maven", "rubygems", "go"},
-        limit=12000,
+        limit=15000,
     )
     epss = load_epss(cache_path="./data/cache/epss.parquet")
-    df = build_dataset(advisories, epss).sample(n=min(10_000, len(advisories)), random_state=SEED)
+    built = build_dataset(advisories, epss)
+    print(f"  advisories scanned: {len(advisories)},  after build_dataset: {len(built)}")
+    df = built.sample(n=min(10_000, len(built)), random_state=SEED).reset_index(drop=True)
 else:
     synth = generate_synthetic_dataset(n=N_EXAMPLES, seed=SEED, noise=0.15)
     # Build a synthetic EPSS that mirrors real-world overlap:
