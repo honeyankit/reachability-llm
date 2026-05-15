@@ -122,6 +122,10 @@ class RobertaFineTuner:
             compute_metrics=metrics,
         )
         self._trainer.train()
+        # After training (and potential best-checkpoint reload), ensure the
+        # model reference is on the right device for inference / embed().
+        self._model = self._trainer.model
+        self._model.to(self._device)
         return self
 
     # ---- inference ----
