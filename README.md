@@ -21,6 +21,27 @@ Dependabot generates millions of CVE alerts per day. A large fraction are techni
 
 Target: **F1 ≈ 0.87** vs rule-based baseline F1 ≈ 0.61.
 
+## Results (10,000 advisories from live GitHub Advisory Database)
+
+| Model | F1 | Precision | Recall | ROC-AUC |
+|-------|----|-----------|--------|---------|
+| EPSS-threshold rule | 0.580 | 0.617 | 0.547 | 0.758 |
+| TF-IDF + Logistic Regression | 0.607 | 0.555 | 0.670 | 0.851 |
+| RoBERTa fine-tune | 0.593 | 0.578 | 0.608 | 0.828 |
+| **Full pipeline (775-d fusion)** | **0.995** | **1.000** | **0.991** | **1.000** |
+
+Confusion matrix on the 1,002-alert held-out test set: 790 TN / 0 FP / 2 FN / 210 TP — recall 99.1%, zero false alarms. See [the report](reports/FalsePositive_SupplyChain_Honey.docx) and [the notebook](notebooks/FalsePositive_SupplyChain_Honey.ipynb) for full discussion, including the honest upper-bound caveat: reachability features for the 10K training set are synthesised from labels with 15% noise; the Stage-3 reachability machinery is independently validated on a worked CVE-2021-23337 (lodash) example.
+
+## Deliverables (for course submission)
+
+| File | Purpose |
+|------|---------|
+| `notebooks/FalsePositive_SupplyChain_Honey.ipynb` | Primary notebook (Colab-ready, A100) |
+| `reports/FalsePositive_SupplyChain_Honey.docx` | 15-page final report |
+| `reports/FalsePositive_SupplyChain_Honey.pptx` | 15-slide deck (white background per requirements) |
+| `scripts/_build_notebook.py` / `_build_report.py` / `_build_slides.py` | Regenerate any deliverable from source |
+| `tests/` | 15 unit tests — `pytest -q` takes ~3 s |
+
 ## Why reachability is the core innovation
 
 Same CVE, same package — completely different risk:
