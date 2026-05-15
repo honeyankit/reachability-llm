@@ -47,27 +47,61 @@ It is structured so you can:
     ),
     md("## 1. Setup"),
     code(
-        """# Install dependencies. Skip on local environments where requirements.txt is already installed.
-import sys, os
+        """# === EDIT THIS LINE ===
+# Set this to your own fork or the upstream repo you pushed the code to.
+# If you opened the notebook in Colab via "Open in GitHub", you still need to
+# clone the rest of the repo so the `reachability_llm` package is importable.
+GITHUB_REPO = "AnkitHoney/reachability-llm"   # owner/name
+REPO_BRANCH = "main"
+# ======================
+
+import sys, os, subprocess
 IN_COLAB = "google.colab" in sys.modules
 
 if IN_COLAB:
     !pip install -q transformers==4.41.2 datasets==2.19.1 sentence-transformers==3.0.1 \\
         accelerate==0.31.0 evaluate==0.4.2 faiss-cpu==1.8.0 networkx==3.3 \\
         scikit-learn==1.5.0 matplotlib seaborn pandas pyarrow tqdm
-    from google.colab import drive
     try:
+        from google.colab import drive
         drive.mount('/content/drive')
     except Exception:
         pass
 
-# Clone this repo to access src/ if running directly in Colab
-REPO_DIR = "/content/reachability-llm" if IN_COLAB else os.path.abspath("..")
-if IN_COLAB and not os.path.exists(REPO_DIR):
-    !git clone https://github.com/<YOUR_GH_USER>/reachability-llm $REPO_DIR
+# Resolve a directory that contains src/reachability_llm.
+# Order of preference:
+#   1. /content/reachability-llm  (cloned in Colab)
+#   2. parent of this notebook (local "git clone + jupyter notebook" workflow)
+#   3. clone from GITHUB_REPO above
+def _find_repo_dir() -> str:
+    candidates = [
+        "/content/reachability-llm",
+        os.path.abspath(".."),
+        os.path.abspath("."),
+    ]
+    for c in candidates:
+        if os.path.exists(os.path.join(c, "src", "reachability_llm", "__init__.py")):
+            return c
+    return ""
 
-sys.path.insert(0, os.path.join(REPO_DIR, "src"))
-print("Repo dir:", REPO_DIR)
+REPO_DIR = _find_repo_dir()
+if not REPO_DIR:
+    target = "/content/reachability-llm" if IN_COLAB else "./reachability-llm"
+    print(f"Cloning https://github.com/{GITHUB_REPO} (branch {REPO_BRANCH}) -> {target}")
+    subprocess.run(
+        ["git", "clone", "--depth", "1", "--branch", REPO_BRANCH,
+         f"https://github.com/{GITHUB_REPO}.git", target],
+        check=True,
+    )
+    REPO_DIR = target
+
+src_path = os.path.join(REPO_DIR, "src")
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
+
+import reachability_llm  # noqa: E402  — fails fast with a clear message
+print(f"Repo dir: {REPO_DIR}")
+print(f"reachability_llm imported from: {reachability_llm.__file__}")
 """
     ),
     code(
