@@ -53,19 +53,18 @@ It is structured so you can:
 
 ### 1a — Install dependencies
 
-Run **this cell first**. It checks whether the right package versions are already loaded.
-- If they are: prints ✅ and continues.
-- If not: installs, then hard-restarts the kernel (`os.kill`). Colab shows "session crashed" — click **Reconnect** and **Run all** once more. The second pass detects the correct versions and skips install.
+Run **this cell first**. It upgrades `accelerate` (the single package Colab ships at an incompatible version) and clears the module cache — no runtime restart required.
+
+**Root cause** (for the curious): Colab ships `transformers ≥5.0` which imports `clear_device_cache` from `accelerate.utils.memory`. That function was added in `accelerate 0.32` (July 2024). Colab's pre-installed accelerate is older. We just upgrade accelerate and flush `sys.modules` so the new version loads in-process. No restart needed; no VM reset.
 """),
     code(
         """\
-# ── Install pinned dependencies ──────────────────────────────────────────────
-# WHY transformers==4.40.2 and NOT 4.41.x?
-#   transformers>=4.41 imports `clear_device_cache` from accelerate.utils.memory.
-#   Colab's Docker image ships accelerate~0.26-0.28 which pre-dates that symbol.
-#   Rather than fight Colab's image, we pin transformers to 4.40.x which has no
-#   such dependency and is fully compatible with any accelerate>=0.21.
-import importlib, subprocess, sys, os
+# ── Fix Colab's accelerate / transformers version mismatch ───────────────────
+# transformers >=5.0 imports clear_device_cache from accelerate.utils.memory,
+# which only exists in accelerate >=0.32. Colab's image often pairs new
+# transformers with old accelerate. Fix: upgrade accelerate in place + flush
+# sys.modules so the new version is what subsequent imports actually load.
+import importlib, subprocess, sys
 
 def _ver(pkg: str) -> tuple[int, ...]:
     try:
@@ -73,35 +72,49 @@ def _ver(pkg: str) -> tuple[int, ...]:
     except Exception:
         return (0, 0)
 
-PACKAGES = [
-    "transformers==4.40.2",    # 4.40.x — no clear_device_cache dependency
-    "datasets==2.19.1",
-    "sentence-transformers==3.0.1",
-    "accelerate>=0.21.0",      # any version >=0.21 is compatible with 4.40.x
-    "evaluate==0.4.2",
-    "faiss-cpu==1.8.0",
-    "networkx==3.3",
-    "scikit-learn==1.5.0",
-    "matplotlib",
-    "seaborn",
-    "pandas",
-    "pyarrow",
-    "tqdm",
-]
+if _ver("accelerate") < (0, 32):
+    cur = importlib.import_module("accelerate").__version__ if _ver("accelerate") != (0, 0) else "(missing)"
+    print(f"accelerate {cur} → upgrading to >=0.34 …")
+    # uninstall first so pip doesn't think the existing version satisfies us
+    subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "accelerate"],
+                   check=False, capture_output=True)
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "accelerate>=0.34"])
 
-_need = _ver("transformers") != (4, 40)
-if _need:
-    print(f"transformers {importlib.import_module('transformers').__version__ if _ver('transformers') != (0,0) else '(missing)'} → installing 4.40.2 …")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
-                           "--force-reinstall", "transformers==4.40.2"])
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q"] +
-                          [p for p in PACKAGES if "transformers" not in p])
-    print("\\n✅ Done. Restarting kernel so new versions load…")
-    print("   Colab will show 'session crashed' — click Reconnect → Run all.")
-    os.kill(os.getpid(), 9)   # hard kill; Colab restarts the kernel automatically
-else:
-    import transformers, accelerate
-    print(f"✅ transformers {transformers.__version__}  |  accelerate {accelerate.__version__}  — OK, no restart needed.")
+    # Flush cached imports so the NEW accelerate is what gets loaded next.
+    for _m in [k for k in list(sys.modules) if k.startswith(("transformers", "accelerate"))]:
+        del sys.modules[_m]
+
+# Install any missing companion packages (Colab usually has these; this is belt-and-suspenders).
+def _missing(mod: str) -> bool:
+    try:
+        importlib.import_module(mod); return False
+    except ImportError:
+        return True
+
+extras = []
+for pkg, mod in [("faiss-cpu", "faiss"), ("networkx", "networkx"),
+                 ("sentence-transformers", "sentence_transformers"),
+                 ("datasets", "datasets"), ("evaluate", "evaluate")]:
+    if _missing(mod):
+        extras.append(pkg)
+if extras:
+    print(f"Installing missing packages: {extras}")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q"] + extras)
+
+# Verify the actual symbol is importable. If this raises, the user must restart manually.
+try:
+    from accelerate.utils.memory import clear_device_cache
+    import accelerate, transformers
+    print(f"✅ accelerate {accelerate.__version__}  |  transformers {transformers.__version__}  — clear_device_cache OK")
+except ImportError as e:
+    print(f"⚠️  sys.modules clear didn't fully take effect: {e}")
+    print()
+    print("=" * 64)
+    print(" MANUAL STEP REQUIRED:")
+    print("   1. Click  Runtime → Restart runtime  (NOT 'Disconnect and delete')")
+    print("   2. Re-run all cells from the top.")
+    print("=" * 64)
+    raise SystemExit("Restart runtime, then run all.")
 """
     ),
 

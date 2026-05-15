@@ -1,10 +1,10 @@
 # Core ML
 torch>=2.1.0
-# Pin to 4.40.x: 4.41+ imports clear_device_cache from accelerate which
-# is absent in the accelerate version Colab pre-installs (~0.26-0.28).
-transformers>=4.40.0,<4.41
+transformers>=4.40.0
 datasets>=2.18.0
-accelerate>=0.21.0
+# accelerate must be >=0.32 (clear_device_cache added) when paired with
+# transformers >=5.0. We pin >=0.34 for safety margin.
+accelerate>=0.34.0
 evaluate>=0.4.1
 sentence-transformers>=2.7.0
 peft>=0.10.0
