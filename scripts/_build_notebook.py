@@ -60,7 +60,7 @@ IN_COLAB = "google.colab" in sys.modules
 
 if IN_COLAB:
     !pip install -q transformers==4.41.2 datasets==2.19.1 sentence-transformers==3.0.1 \\
-        accelerate==0.31.0 evaluate==0.4.2 faiss-cpu==1.8.0 networkx==3.3 \\
+        "accelerate>=0.34.0,<1.0" evaluate==0.4.2 faiss-cpu==1.8.0 networkx==3.3 \\
         scikit-learn==1.5.0 matplotlib seaborn pandas pyarrow tqdm
     try:
         from google.colab import drive
