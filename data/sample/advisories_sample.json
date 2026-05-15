@@ -1,0 +1,80 @@
+[
+  {
+    "ghsa_id": "GHSA-35jh-r3h4-6jhm",
+    "cve_id": "CVE-2021-23337",
+    "package": "lodash",
+    "ecosystem": "npm",
+    "summary": "Command Injection in lodash",
+    "description": "lodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function. An attacker can craft a malicious sourceURL option that, when combined with user-controlled input, executes arbitrary commands via shell interpretation.",
+    "severity": "HIGH",
+    "cvss_score": 7.2,
+    "cwe_ids": "CWE-78",
+    "published": "2021-02-15T00:00:00Z",
+    "modified": "2021-02-15T00:00:00Z"
+  },
+  {
+    "ghsa_id": "GHSA-jf85-cpcp-j695",
+    "cve_id": "CVE-2019-10744",
+    "package": "lodash",
+    "ecosystem": "npm",
+    "summary": "Prototype Pollution in lodash",
+    "description": "Versions of lodash prior to 4.17.12 are vulnerable to Prototype Pollution. The function `defaultsDeep` could be tricked into adding or modifying properties of Object.prototype using a constructor payload.",
+    "severity": "CRITICAL",
+    "cvss_score": 9.1,
+    "cwe_ids": "CWE-1321",
+    "published": "2019-07-26T00:00:00Z",
+    "modified": "2019-07-26T00:00:00Z"
+  },
+  {
+    "ghsa_id": "GHSA-rhx6-c78j-4q9w",
+    "cve_id": "CVE-2020-1747",
+    "package": "pyyaml",
+    "ecosystem": "pip",
+    "summary": "Arbitrary Code Execution in PyYAML",
+    "description": "PyYAML's `yaml.load()` function with the default Loader is vulnerable to arbitrary code execution when processing untrusted YAML files. An attacker can craft a YAML payload that deserializes into Python objects with side effects.",
+    "severity": "CRITICAL",
+    "cvss_score": 9.8,
+    "cwe_ids": "CWE-502",
+    "published": "2020-03-24T00:00:00Z",
+    "modified": "2020-03-24T00:00:00Z"
+  },
+  {
+    "ghsa_id": "GHSA-jfh8-c2jp-5v3q",
+    "cve_id": "CVE-2021-44228",
+    "package": "log4j-core",
+    "ecosystem": "maven",
+    "summary": "Remote code execution in Log4j2",
+    "description": "Log4Shell. Log4j2 JNDI features used in configuration, log messages, and parameters do not protect against attacker-controlled LDAP and other JNDI related endpoints. An attacker who can control log messages can execute arbitrary code loaded from LDAP servers.",
+    "severity": "CRITICAL",
+    "cvss_score": 10.0,
+    "cwe_ids": "CWE-502",
+    "published": "2021-12-10T00:00:00Z",
+    "modified": "2021-12-10T00:00:00Z"
+  },
+  {
+    "ghsa_id": "GHSA-h755-8qpw-p3jx",
+    "cve_id": "CVE-2018-1000007",
+    "package": "request",
+    "ecosystem": "npm",
+    "summary": "Authorization header leak on cross-protocol redirects",
+    "description": "request will follow redirects by default. If a redirect crosses protocols (HTTP <-> HTTPS), the Authorization header is forwarded to the new host, leaking credentials. Affects request <=2.88.0.",
+    "severity": "MODERATE",
+    "cvss_score": 5.3,
+    "cwe_ids": "CWE-200",
+    "published": "2018-02-05T00:00:00Z",
+    "modified": "2018-02-05T00:00:00Z"
+  },
+  {
+    "ghsa_id": "GHSA-jfh8-c2jp-zzzz",
+    "cve_id": "CVE-2023-99001",
+    "package": "left-pad",
+    "ecosystem": "npm",
+    "summary": "Theoretical DoS in left-pad",
+    "description": "When left-pad is called with a length parameter larger than 2^30 the function returns a very large string, potentially exhausting memory. Triggers only on attacker-controlled length input which is rarely user-influenced.",
+    "severity": "LOW",
+    "cvss_score": 3.7,
+    "cwe_ids": "CWE-400",
+    "published": "2023-04-10T00:00:00Z",
+    "modified": "2023-04-10T00:00:00Z"
+  }
+]

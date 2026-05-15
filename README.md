@@ -2,7 +2,7 @@
 
 **Reducing Alert Fatigue: LLM-Based False Positive Detection in Software Supply Chain Security Vulnerability Alerts**
 
-CSCI E-222 Final Project - Ankit Kumar Honey, Harvard Extension School, Spring 2026.
+CSCI E-222 Final Project — Ankit Kumar Honey, Harvard Extension School, Spring 2026.
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/<YOUR_GH_USER>/reachability-llm/blob/main/notebooks/FalsePositive_SupplyChain_Honey.ipynb)
 
