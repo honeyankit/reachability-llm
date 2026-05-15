@@ -48,13 +48,24 @@ It is structured so you can:
     ),
 
     # ── 1a. Install pinned dependencies ─────────────────────────────────────
-    md("## 1. Setup\n\n### 1a — Install dependencies\n\nRun this cell first. If packages need upgrading the runtime restarts automatically — just re-run from this cell after reconnecting."),
+    md("""\
+## 1. Setup
+
+### 1a — Install dependencies
+
+Run **this cell first**. It checks whether the right package versions are already loaded.
+- If they are: prints ✅ and continues.
+- If not: installs, then hard-restarts the kernel (`os.kill`). Colab shows "session crashed" — click **Reconnect** and **Run all** once more. The second pass detects the correct versions and skips install.
+"""),
     code(
         """\
 # ── Install pinned dependencies ──────────────────────────────────────────────
-# This cell is idempotent: on subsequent runs it detects the right versions
-# are already present and skips the install + restart entirely.
-import importlib, subprocess, sys
+# WHY transformers==4.40.2 and NOT 4.41.x?
+#   transformers>=4.41 imports `clear_device_cache` from accelerate.utils.memory.
+#   Colab's Docker image ships accelerate~0.26-0.28 which pre-dates that symbol.
+#   Rather than fight Colab's image, we pin transformers to 4.40.x which has no
+#   such dependency and is fully compatible with any accelerate>=0.21.
+import importlib, subprocess, sys, os
 
 def _ver(pkg: str) -> tuple[int, ...]:
     try:
@@ -63,10 +74,10 @@ def _ver(pkg: str) -> tuple[int, ...]:
         return (0, 0)
 
 PACKAGES = [
-    "transformers==4.41.2",
+    "transformers==4.40.2",    # 4.40.x — no clear_device_cache dependency
     "datasets==2.19.1",
     "sentence-transformers==3.0.1",
-    "accelerate==0.34.2",  # ← must be >=0.34.0; transformers 4.41 imports clear_device_cache
+    "accelerate>=0.21.0",      # any version >=0.21 is compatible with 4.40.x
     "evaluate==0.4.2",
     "faiss-cpu==1.8.0",
     "networkx==3.3",
@@ -78,18 +89,19 @@ PACKAGES = [
     "tqdm",
 ]
 
-_need = _ver("accelerate") < (0, 34) or _ver("transformers") < (4, 41)
+_need = _ver("transformers") != (4, 40)
 if _need:
-    print("Installing / upgrading packages — this takes ~60 s on Colab…")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q"] + PACKAGES)
-    print("\\n✅ Packages installed. Restarting runtime so new versions load…")
-    print("   Colab will reconnect automatically. Re-run from this cell.")
-    # Graceful IPython kernel restart (Colab reconnects and re-runs automatically).
-    import IPython
-    IPython.Application.instance().kernel.do_shutdown(True)
+    print(f"transformers {importlib.import_module('transformers').__version__ if _ver('transformers') != (0,0) else '(missing)'} → installing 4.40.2 …")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
+                           "--force-reinstall", "transformers==4.40.2"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q"] +
+                          [p for p in PACKAGES if "transformers" not in p])
+    print("\\n✅ Done. Restarting kernel so new versions load…")
+    print("   Colab will show 'session crashed' — click Reconnect → Run all.")
+    os.kill(os.getpid(), 9)   # hard kill; Colab restarts the kernel automatically
 else:
-    import accelerate, transformers
-    print(f"✅ accelerate {accelerate.__version__}  |  transformers {transformers.__version__}  — no restart needed.")
+    import transformers, accelerate
+    print(f"✅ transformers {transformers.__version__}  |  accelerate {accelerate.__version__}  — OK, no restart needed.")
 """
     ),
 
