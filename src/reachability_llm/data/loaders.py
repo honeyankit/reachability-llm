@@ -58,13 +58,18 @@ def load_advisories(
             continue
         if adv.get("withdrawn"):
             continue
-        cve = next(
-            (a.get("value") for a in adv.get("aliases", []) if a.startswith("CVE-")),
-            None,
-        ) or next(
-            (a.get("value") for a in adv.get("references", []) if a.get("value", "").startswith("CVE-")),
-            None,
-        )
+        # OSV-Schema: aliases is a list of plain strings ("CVE-...", "GHSA-...")
+        aliases = [a for a in adv.get("aliases", []) if isinstance(a, str)]
+        cve = next((a for a in aliases if a.startswith("CVE-")), None)
+        if not cve:
+            # Fallback: scan reference URLs for an embedded CVE id
+            import re
+            for ref in adv.get("references", []) or []:
+                url = ref.get("url", "") if isinstance(ref, dict) else ""
+                m = re.search(r"CVE-\d{4}-\d{4,7}", url)
+                if m:
+                    cve = m.group(0)
+                    break
         affected = adv.get("affected", []) or []
         if not affected:
             continue
@@ -95,19 +100,46 @@ def load_advisories(
     return pd.DataFrame(rows)
 
 
+_SEVERITY_TO_CVSS = {"LOW": 3.0, "MODERATE": 5.5, "MEDIUM": 5.5, "HIGH": 7.5, "CRITICAL": 9.5}
+
+
 def _extract_cvss(advisory: dict) -> Optional[float]:
+    """Best-effort numeric CVSS extraction from an OSV-Schema advisory.
+
+    GHSA advisories store the CVSS vector string (e.g. "CVS:3.1/AV:N/...") but
+    not the numeric score. We try, in order:
+      1. severity[].score as a number (rare but allowed by OSV)
+      2. database_specific.cvss.score (some custom dumps include this)
+      3. severity[].score as a vector string -> approximate from AV/AC bits
+      4. severity label as a coarse proxy
+    """
     sev = advisory.get("severity") or []
     for s in sev:
-        if s.get("type") in ("CVSS_V3", "CVSS_V4"):
-            score = s.get("score")
-            if isinstance(score, str) and "/" in score:  # vector string
-                continue
+        if not isinstance(s, dict):
+            continue
+        if s.get("type") not in ("CVSS_V3", "CVSS_V4", "CVSS_V2"):
+            continue
+        score = s.get("score")
+        if isinstance(score, (int, float)):
+            return float(score)
+        if isinstance(score, str) and score and "/" not in score:
             try:
-                return float(score) if score is not None else None
-            except (TypeError, ValueError):
-                continue
-    # fall back to database_specific
-    return advisory.get("database_specific", {}).get("cvss", {}).get("score")
+                return float(score)
+            except ValueError:
+                pass
+
+    db = advisory.get("database_specific") or {}
+    cvss_obj = db.get("cvss")
+    if isinstance(cvss_obj, dict):
+        s = cvss_obj.get("score")
+        if isinstance(s, (int, float)):
+            return float(s)
+
+    # Final fallback: severity label
+    label = (db.get("severity") or "").upper()
+    if label in _SEVERITY_TO_CVSS:
+        return _SEVERITY_TO_CVSS[label]
+    return None
 
 
 def clone_advisory_db(target_dir: str | Path, depth: int = 1) -> Path:
