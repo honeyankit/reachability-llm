@@ -83,6 +83,25 @@ class CombinedClassifier:
     def predict(self, X: np.ndarray) -> np.ndarray:
         return self.predict_proba(X).argmax(-1)
 
+    @classmethod
+    def from_joblib(cls, path) -> "CombinedClassifier":
+        """Rehydrate a CombinedClassifier from a joblib bundle saved by the notebook.
+
+        The bundle is produced by the "Save trained artifacts" cell at the end
+        of notebooks/FalsePositive_SupplyChain_Honey.ipynb. It contains the
+        fitted StandardScaler, the fitted LR (or MLP) head, the feature layout,
+        and a model card.
+        """
+        import joblib
+        from pathlib import Path
+        bundle = joblib.load(Path(path))
+        instance = cls()
+        instance.scaler = bundle["scaler"]
+        instance.head = bundle["head"]
+        instance.feature_layout = bundle.get("feature_layout", {})
+        instance.model_card = bundle.get("model_card", {})
+        return instance
+
 
 class _MlpHead:
     """Small torch MLP, used when PipelineConfig.use_mlp=True."""

@@ -578,6 +578,92 @@ for chunk, score in hits:
 """
     ),
 
+    # ── Save trained artifacts (between Section 9 and Conclusion) ───────────
+    md(
+        """\
+## Save trained artifacts for deployment
+
+Persists the trained RoBERTa model and the combined-classifier head to disk so the production CLI (`scripts/scan_dependabot.py`) can load and apply them to fresh Dependabot alerts. Three artifacts are produced:
+
+1. `roberta-cve/` (around 500 MB), the fine-tuned RoBERTa weights + tokenizer.
+2. `combined_classifier.joblib` (around 10 KB), the Logistic Regression head and the StandardScaler, plus a model card.
+3. `MANIFEST.json`, the index file the CLI reads to find the other two.
+
+By default, artifacts land in Google Drive (`/content/drive/MyDrive/reachability-llm-artifacts`) so they survive Colab session restarts. Optionally, push to HuggingFace Hub for one-line distribution to any CI runner or teammate.
+"""
+    ),
+    code(
+        """\
+# PERSIST_TRAINED_ARTIFACTS_SENTINEL
+import json
+import joblib
+from pathlib import Path
+
+# Drive is mounted in cell 1b. Falls back to a local path if not in Colab.
+DRIVE_ROOT = Path("/content/drive/MyDrive")
+ARTIFACT_DIR = (DRIVE_ROOT / "reachability-llm-artifacts") if DRIVE_ROOT.exists() \\
+    else Path("./artifacts")
+ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+
+# 1) RoBERTa fine-tuned model + tokenizer
+print("Saving RoBERTa ...")
+roberta.save(ARTIFACT_DIR / "roberta-cve")
+
+# 2) Combined classifier (LR head + StandardScaler) plus a model card
+print("Saving combined classifier ...")
+joblib.dump({
+    "scaler": clf.scaler,
+    "head":   clf.head,
+    "feature_layout": {
+        "roberta_cls":  {"start":   0, "end": 768, "dim": 768},
+        "structured":   {"start": 768, "end": 773, "dim":   5,
+                         "names": ["cvss_score", "epss", "days_since_publication",
+                                   "fix_available", "ecosystem_id"]},
+        "reachability": {"start": 773, "end": 775, "dim":   2,
+                         "names": ["static_reachable", "llm_reachable"]},
+    },
+    "model_card": {
+        "version":     "v1.0",
+        "trained_at":  pd.Timestamp.utcnow().isoformat(),
+        "trained_on":  f"{len(train_df)} GHSA alerts (mode={MODE})",
+        "test_f1":     round(combined_metrics["f1"], 4),
+        "test_recall": round(combined_metrics["recall"], 4),
+        "test_precision": round(combined_metrics["precision"], 4),
+        "notes":       "775-d fusion: 768 RoBERTa CLS + 5 structured + 2 reachability",
+    },
+}, ARTIFACT_DIR / "combined_classifier.joblib")
+
+# 3) Manifest so the CLI knows what's there
+(ARTIFACT_DIR / "MANIFEST.json").write_text(json.dumps({
+    "roberta_dir":     "roberta-cve",
+    "classifier_file": "combined_classifier.joblib",
+    "version":         "v1.0",
+}, indent=2))
+
+print(f"\\nArtifacts written to {ARTIFACT_DIR}")
+for p in sorted(ARTIFACT_DIR.rglob("*")):
+    if p.is_file():
+        size_mb = p.stat().st_size / 1e6
+        print(f"  {p.relative_to(ARTIFACT_DIR)}  ({size_mb:.1f} MB)")
+
+# ── Optional: push to HuggingFace Hub for one-line CLI download ─────────────
+# Uncomment, paste your HF token, and re-run this cell to publish.
+#
+# HF_TOKEN = "hf_PASTE_YOUR_HF_TOKEN_HERE"
+# HF_REPO  = "honeyankit/reachability-llm-v1"
+# from huggingface_hub import login, HfApi, create_repo
+# login(token=HF_TOKEN); create_repo(HF_REPO, exist_ok=True)
+# roberta._model.push_to_hub(HF_REPO)
+# roberta._tokenizer.push_to_hub(HF_REPO)
+# api = HfApi()
+# api.upload_file(path_or_fileobj=str(ARTIFACT_DIR / "combined_classifier.joblib"),
+#                 path_in_repo="combined_classifier.joblib", repo_id=HF_REPO)
+# api.upload_file(path_or_fileobj=str(ARTIFACT_DIR / "MANIFEST.json"),
+#                 path_in_repo="MANIFEST.json", repo_id=HF_REPO)
+# print(f"Pushed to https://huggingface.co/{HF_REPO}")
+"""
+    ),
+
     # ── 10. Conclusion ───────────────────────────────────────────────────────
     md(
         """\
