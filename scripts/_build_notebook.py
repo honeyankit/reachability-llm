@@ -59,62 +59,32 @@ Run **this cell first**. It upgrades `accelerate` (the single package Colab ship
 """),
     code(
         """\
-# ── Fix Colab's accelerate / transformers version mismatch ───────────────────
-# transformers >=5.0 imports clear_device_cache from accelerate.utils.memory,
-# which only exists in accelerate >=0.32. Colab's image often pairs new
-# transformers with old accelerate. Fix: upgrade accelerate in place + flush
-# sys.modules so the new version is what subsequent imports actually load.
-import importlib, subprocess, sys
+import subprocess, sys
 
-def _ver(pkg: str) -> tuple[int, ...]:
-    try:
-        return tuple(int(x) for x in importlib.import_module(pkg).__version__.split(".")[:2])
-    except Exception:
-        return (0, 0)
+print("Setting up dependencies for the notebook ...")
 
-if _ver("accelerate") < (0, 32):
-    cur = importlib.import_module("accelerate").__version__ if _ver("accelerate") != (0, 0) else "(missing)"
-    print(f"accelerate {cur} → upgrading to >=0.34 …")
-    # uninstall first so pip doesn't think the existing version satisfies us
-    subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "accelerate"],
-                   check=False, capture_output=True)
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "accelerate>=0.34"])
+# If a previous session pinned numpy<2, Colab's pandas/scipy/etc (compiled
+# against numpy 2.x) now hit an ABI mismatch on import. Detect that broken
+# state and force-reinstall the C-extension packages so they match numpy 2.x.
+import numpy as _np
+if int(_np.__version__.split(".")[0]) < 2:
+    print("  Detected numpy 1.x. Force-reinstalling C-extension packages so they match numpy 2.x ABI ...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
+        "--force-reinstall",
+        "numpy>=2.0,<3", "pandas", "scipy", "scikit-learn", "matplotlib", "seaborn",
+    ])
 
-    # Flush cached imports so the NEW accelerate is what gets loaded next.
-    for _m in [k for k in list(sys.modules) if k.startswith(("transformers", "accelerate"))]:
-        del sys.modules[_m]
+# Pin transformers and accelerate; use a faiss build that supports numpy 2.x.
+subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
+    "transformers==4.46.3",   # has EncoderDecoderCache, does not import clear_device_cache
+    "accelerate>=0.34,<1.0",  # provides clear_device_cache for any transformers that needs it
+    "faiss-cpu>=1.9.0",       # numpy-2-compatible wheel, removes the need to pin numpy<2
+])
 
-# Install any missing companion packages (Colab usually has these; this is belt-and-suspenders).
-def _missing(mod: str) -> bool:
-    try:
-        importlib.import_module(mod); return False
-    except ImportError:
-        return True
-
-extras = []
-for pkg, mod in [("faiss-cpu", "faiss"), ("networkx", "networkx"),
-                 ("sentence-transformers", "sentence_transformers"),
-                 ("datasets", "datasets"), ("evaluate", "evaluate")]:
-    if _missing(mod):
-        extras.append(pkg)
-if extras:
-    print(f"Installing missing packages: {extras}")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q"] + extras)
-
-# Verify the actual symbol is importable. If this raises, the user must restart manually.
-try:
-    from accelerate.utils.memory import clear_device_cache
-    import accelerate, transformers
-    print(f"✅ accelerate {accelerate.__version__}  |  transformers {transformers.__version__}  — clear_device_cache OK")
-except ImportError as e:
-    print(f"⚠️  sys.modules clear didn't fully take effect: {e}")
-    print()
-    print("=" * 64)
-    print(" MANUAL STEP REQUIRED:")
-    print("   1. Click  Runtime → Restart runtime  (NOT 'Disconnect and delete')")
-    print("   2. Re-run all cells from the top.")
-    print("=" * 64)
-    raise SystemExit("Restart runtime, then run all.")
+print("\\n" + "=" * 64)
+print(" Click  Runtime > Restart runtime   (NOT 'Disconnect and delete')")
+print(" Then run all cells from 1b.")
+print("=" * 64)
 """
     ),
 
